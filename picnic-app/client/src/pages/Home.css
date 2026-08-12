@@ -1,0 +1,229 @@
+.hero {
+  position: relative;
+  padding-top: 64px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #E4EEDE 0%, var(--color-bg) 100%);
+}
+
+.hero__grid {
+  display: grid;
+  gap: 48px;
+  align-items: center;
+  padding-bottom: 80px;
+}
+
+.hero__lede {
+  font-size: 1.1rem;
+  max-width: 46ch;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+
+.hero__facts {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 24px;
+  margin: 0;
+}
+.hero__facts dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+.hero__facts dd {
+  margin: 0;
+  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.hero__card {
+  padding: 28px;
+  transform: rotate(2deg);
+  max-width: 340px;
+  margin: 0 auto;
+}
+.hero__ticket-preview {
+  text-align: center;
+}
+.hero__qr-mock {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.hero__qr-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  width: 160px;
+  height: 160px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border);
+}
+.hero__qr-grid span {
+  background: transparent;
+  border-radius: 1px;
+}
+.hero__qr-grid span.is-dark {
+  background: var(--color-ink);
+}
+.hero__ticket-code {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.section--alt {
+  background: var(--color-surface-alt);
+}
+
+.about__grid {
+  display: grid;
+  gap: 40px;
+}
+.about__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.about__list li {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  font-weight: 500;
+}
+
+.details__grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 28px;
+}
+.detail-card {
+  padding: 22px;
+}
+.detail-card__icon {
+  font-size: 1.6rem;
+  display: block;
+  margin-bottom: 10px;
+}
+.detail-card__label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+.detail-card__value {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin-bottom: 0;
+  color: var(--color-ink);
+}
+
+.notice-card {
+  background: var(--color-accent-light);
+  border: 1px solid var(--color-accent);
+  color: #6B4A0F;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  font-size: 0.95rem;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 28px;
+  max-width: 720px;
+}
+.steps__item {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding-bottom: 28px;
+  border-bottom: 1px dashed var(--color-border-strong);
+}
+.steps__item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.steps__marker {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.faq__grid {
+  display: grid;
+  gap: 40px;
+}
+.faq__list {
+  display: grid;
+  gap: 12px;
+}
+.faq__item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+.faq__item summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.faq__item summary::-webkit-details-marker { display: none; }
+.faq__item summary::after {
+  content: '+';
+  float: right;
+  font-size: 1.3rem;
+  color: var(--color-primary);
+}
+.faq__item[open] summary::after {
+  content: '\2212';
+}
+.faq__item p {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.contact__box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px;
+}
+
+@media (min-width: 860px) {
+  .hero__grid { grid-template-columns: 1.15fr 1fr; padding-bottom: 100px; }
+  .about__grid { grid-template-columns: 1fr 1fr; }
+  .details__grid { grid-template-columns: repeat(4, 1fr); }
+  .faq__grid { grid-template-columns: 0.8fr 1.2fr; }
+}
