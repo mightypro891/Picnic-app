@@ -1,4 +1,5 @@
 import path from 'path';
+import crypto from 'crypto';
 import { db } from '../config/db.js';
 import { env } from '../config/env.js';
 import { validateRegistrationInput, normalizeMatric, normalizeEmail } from '../utils/validators.js';
@@ -9,6 +10,16 @@ import { generateQrDataUrl } from '../services/qrService.js';
 import { uploadPaymentEvidence, deleteEvidence } from '../services/storageService.js';
 
 export async function createRegistration(req, res) {
+  // Honeypot check: a real visitor never sees or fills this field (it's
+  // hidden off-screen), so a non-empty value means the request came from an
+  // automated bot. We respond with the same success shape a real submission
+  // gets — never inserting anything — so the bot has no signal to learn from
+  // and adjust its behavior.
+  if (req.body.website) {
+    recordAudit({ actorType: 'system', action: 'BOT_REGISTRATION_BLOCKED', metadata: { ip: req.ip } });
+    return res.status(201).json({ message: 'Registration submitted successfully.', accessToken: 'blocked' });
+  }
+
   const { valid, errors, data } = validateRegistrationInput(req.body);
 
   if (!req.file) {
@@ -46,6 +57,17 @@ export async function createRegistration(req, res) {
     return res.status(502).json({ error: 'Could not upload your payment evidence. Please try again.' });
   }
 
+  // Duplicate-receipt check: an exact copy of a file someone else already
+  // submitted is the single most common form of receipt fraud (reusing a
+  // friend's proof of payment). This never blocks submission — it only
+  // flags the registration for the admin to look at during review.
+  const evidenceHash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+  const { rows: duplicateRows } = await db.query(
+    `SELECT id FROM registrations WHERE evidence_sha256 = $1 LIMIT 1`,
+    [evidenceHash]
+  );
+  const duplicateOfId = duplicateRows[0]?.id || null;
+
   const registration = {
     id: generateId('reg'),
     full_name: data.fullName,
@@ -58,6 +80,8 @@ export async function createRegistration(req, res) {
     payment_evidence_path: evidencePath,
     payment_evidence_original_name: req.file.originalname,
     payment_evidence_mime: req.file.mimetype,
+    evidence_sha256: evidenceHash,
+    duplicate_of_registration_id: duplicateOfId,
     access_token: generateAccessToken(),
   };
 
@@ -65,8 +89,9 @@ export async function createRegistration(req, res) {
     await db.query(
       `INSERT INTO registrations
         (id, full_name, matric_number, matric_number_normalized, level, phone, email, email_normalized,
-         payment_evidence_path, payment_evidence_original_name, payment_evidence_mime, access_token)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+         payment_evidence_path, payment_evidence_original_name, payment_evidence_mime,
+         evidence_sha256, duplicate_of_registration_id, access_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [
         registration.id,
         registration.full_name,
@@ -79,6 +104,8 @@ export async function createRegistration(req, res) {
         registration.payment_evidence_path,
         registration.payment_evidence_original_name,
         registration.payment_evidence_mime,
+        registration.evidence_sha256,
+        registration.duplicate_of_registration_id,
         registration.access_token,
       ]
     );
@@ -98,6 +125,16 @@ export async function createRegistration(req, res) {
     targetType: 'registration',
     targetId: registration.id,
   });
+
+  if (duplicateOfId) {
+    recordAudit({
+      actorType: 'system',
+      action: 'DUPLICATE_RECEIPT_DETECTED',
+      targetType: 'registration',
+      targetId: registration.id,
+      metadata: { matchesRegistrationId: duplicateOfId },
+    });
+  }
 
   sendRegistrationReceivedEmail({ to: registration.email, fullName: registration.full_name }).catch((err) =>
     console.error('Failed to send registration-received email:', err)
@@ -130,11 +167,8 @@ export async function getMyRegistration(req, res) {
 
   let qrCodeDataUrl = null;
   if (registration.status === 'APPROVED' && registration.ticket_token) {
-    qrCodeDataUrl = await generateQrDataUrl({
-      fullName: registration.full_name,
-      level: registration.level,
-      ticketCode: registration.ticket_code,
-    });
+    const ticketUrl = `${env.clientBaseUrl}/ticket/${accessToken}`;
+    qrCodeDataUrl = await generateQrDataUrl(ticketUrl);
   }
 
   res.json({

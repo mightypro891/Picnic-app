@@ -7,6 +7,8 @@ import {
   getPaymentEvidence,
   approveRegistration,
   rejectRegistration,
+  resendTicket,
+  deleteRegistration,
   exportAttendeesCsv,
   listAuditLog,
   exportAuditLogCsv,
@@ -25,6 +27,8 @@ router.get('/registrations/:id', asyncHandler(getRegistrationDetail));
 router.get('/registrations/:id/evidence', asyncHandler(getPaymentEvidence));
 router.post('/registrations/:id/approve', asyncHandler(approveRegistration));
 router.post('/registrations/:id/reject', asyncHandler(rejectRegistration));
+router.post('/registrations/:id/resend-ticket', asyncHandler(resendTicket));
+router.delete('/registrations/:id', asyncHandler(deleteRegistration));
 router.get('/attendees', asyncHandler(listAttendance));
 router.get('/gate-stats', asyncHandler(listGateStats));
 router.get('/export/attendees.csv', asyncHandler(exportAttendeesCsv));

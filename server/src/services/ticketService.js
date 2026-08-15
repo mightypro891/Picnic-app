@@ -37,6 +37,22 @@ export async function findTicketByToken(token) {
   return rows[0] || null;
 }
 
+/**
+ * Looks a ticket up by the registration's access_token — this is what's
+ * actually encoded in the QR code now (as part of the ticket page URL), so
+ * this is what the admin Scanner uses to check someone in.
+ */
+export async function findTicketByAccessToken(accessToken) {
+  const { rows } = await db.query(
+    `SELECT t.*, r.full_name, r.level, r.matric_number, r.status AS registration_status
+     FROM tickets t
+     JOIN registrations r ON r.id = t.registration_id
+     WHERE r.access_token = $1`,
+    [accessToken]
+  );
+  return rows[0] || null;
+}
+
 export async function findTicketByCode(ticketCode) {
   const { rows } = await db.query(
     `SELECT t.*, r.full_name, r.level, r.matric_number, r.status AS registration_status

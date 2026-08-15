@@ -3,7 +3,7 @@ import { recordAudit } from '../utils/audit.js';
 import { issueTicket } from '../services/ticketService.js';
 import { generateQrBuffer } from '../services/qrService.js';
 import { sendApprovedTicketEmail, sendRejectedEmail } from '../services/emailService.js';
-import { getSignedEvidenceUrl } from '../services/storageService.js';
+import { getSignedEvidenceUrl, deleteEvidence } from '../services/storageService.js';
 import { env } from '../config/env.js';
 
 const ALLOWED_STATUS_FILTERS = new Set(['PENDING', 'APPROVED', 'REJECTED']);
@@ -75,7 +75,7 @@ export async function listRegistrations(req, res) {
 
   const { rows } = await db.query(
     `SELECT r.id, r.full_name, r.matric_number, r.level, r.email, r.phone, r.status,
-            r.rejection_reason, r.created_at, r.approved_at,
+            r.rejection_reason, r.created_at, r.approved_at, r.duplicate_of_registration_id,
             t.ticket_code, t.status AS ticket_status, t.checked_in_at
      FROM registrations r
      LEFT JOIN tickets t ON t.registration_id = r.id
@@ -171,12 +171,8 @@ export async function approveRegistration(req, res) {
   res.json({ message: 'Registration approved.', ticketCode: ticket.ticket_code });
 
   try {
-    const qrBuffer = await generateQrBuffer({
-      fullName: registration.full_name,
-      level: registration.level,
-      ticketCode: ticket.ticket_code,
-    });
     const ticketUrl = `${env.clientBaseUrl}/ticket/${registration.access_token}`;
+    const qrBuffer = await generateQrBuffer(ticketUrl);
     await sendApprovedTicketEmail({
       to: registration.email,
       fullName: registration.full_name,
@@ -188,6 +184,86 @@ export async function approveRegistration(req, res) {
   } catch (err) {
     console.error('Failed to send approval email:', err);
   }
+}
+
+/**
+ * Re-sends the ticket email for an already-approved registration — for
+ * students whose email got lost, went to spam, or (for anyone approved
+ * before the QR-code fix) whose ticket has the old broken QR format. This
+ * regenerates the QR fresh each time, so it also silently repairs any
+ * old-format tickets without needing to re-approve them.
+ */
+export async function resendTicket(req, res) {
+  const { rows } = await db.query(
+    `SELECT r.*, t.id AS ticket_id, t.ticket_code
+     FROM registrations r
+     JOIN tickets t ON t.registration_id = r.id
+     WHERE r.id = $1`,
+    [req.params.id]
+  );
+  const registration = rows[0];
+
+  if (!registration) return res.status(404).json({ error: 'Registration not found.' });
+  if (registration.status !== 'APPROVED') {
+    return res.status(409).json({ error: 'Only approved registrations have a ticket to resend.' });
+  }
+
+  const ticketUrl = `${env.clientBaseUrl}/ticket/${registration.access_token}`;
+
+  try {
+    const qrBuffer = await generateQrBuffer(ticketUrl);
+    await sendApprovedTicketEmail({
+      to: registration.email,
+      fullName: registration.full_name,
+      level: registration.level,
+      ticketCode: registration.ticket_code,
+      qrCodeBuffer: qrBuffer,
+      ticketUrl,
+    });
+  } catch (err) {
+    console.error('Failed to resend ticket email:', err);
+    return res.status(502).json({ error: 'Could not send the email. Check SMTP configuration and try again.' });
+  }
+
+  recordAudit({
+    actorType: 'admin',
+    actorId: req.admin.id,
+    action: 'TICKET_RESENT',
+    targetType: 'registration',
+    targetId: registration.id,
+    metadata: { ticketCode: registration.ticket_code },
+  });
+
+  res.json({ message: 'Ticket email resent.' });
+}
+
+/**
+ * Permanently deletes a registration (and, via ON DELETE CASCADE, its
+ * ticket if one was issued) along with its uploaded payment evidence file.
+ * Meant for cleaning up test submissions — this is irreversible, so the
+ * client requires the admin to type the person's name to confirm.
+ */
+export async function deleteRegistration(req, res) {
+  const { rows } = await db.query('SELECT * FROM registrations WHERE id = $1', [req.params.id]);
+  const registration = rows[0];
+  if (!registration) return res.status(404).json({ error: 'Registration not found.' });
+
+  await db.query('DELETE FROM registrations WHERE id = $1', [registration.id]);
+
+  if (registration.payment_evidence_path) {
+    deleteEvidence(registration.payment_evidence_path); // best-effort, never blocks the response
+  }
+
+  recordAudit({
+    actorType: 'admin',
+    actorId: req.admin.id,
+    action: 'REGISTRATION_DELETED',
+    targetType: 'registration',
+    targetId: registration.id,
+    metadata: { fullName: registration.full_name, matricNumber: registration.matric_number },
+  });
+
+  res.json({ message: 'Registration deleted.' });
 }
 
 export async function rejectRegistration(req, res) {
@@ -266,6 +342,10 @@ const ALLOWED_AUDIT_ACTIONS = new Set([
   'PASSWORD_RESET_COMPLETED',
   'ATTENDEES_EXPORTED',
   'BACKUP_CREATED',
+  'BOT_REGISTRATION_BLOCKED',
+  'DUPLICATE_RECEIPT_DETECTED',
+  'TICKET_RESENT',
+  'REGISTRATION_DELETED',
 ]);
 
 /** Security/audit log for review — who did what, and every rate-limit trip. */

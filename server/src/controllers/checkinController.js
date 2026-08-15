@@ -1,6 +1,20 @@
 import { db } from '../config/db.js';
-import { findTicketByToken, findTicketByCode, checkInTicket } from '../services/ticketService.js';
+import { findTicketByToken, findTicketByAccessToken, findTicketByCode, checkInTicket } from '../services/ticketService.js';
 import { recordAudit } from '../utils/audit.js';
+
+/**
+ * The QR code now encodes a full ticket-page URL (e.g.
+ * https://your-app.com/ticket/<accessToken>) so that scanning it with any
+ * ordinary phone camera opens a page showing the attendee's own info. The
+ * admin Scanner reads that same QR, so this pulls the access token back out
+ * of the URL — falling back to treating the raw scanned text as the token
+ * directly, for tickets issued before this URL format existed.
+ */
+function extractAccessToken(scannedText) {
+  const trimmed = (scannedText || '').trim();
+  const match = trimmed.match(/\/ticket\/([^/?#]+)/);
+  return match ? match[1] : trimmed;
+}
 
 function buildResult(ticket) {
   return {
@@ -71,11 +85,16 @@ async function verifyAndCheckIn(ticket, adminId, gate, res) {
 }
 
 export async function scanTicket(req, res) {
-  const token = (req.body.token || '').trim();
+  const rawText = (req.body.token || '').trim();
   const gate = sanitizeGate(req.body.gate);
-  if (!token) return res.status(400).json({ result: 'INVALID', message: 'No QR data received.' });
+  if (!rawText) return res.status(400).json({ result: 'INVALID', message: 'No QR data received.' });
 
-  const ticket = await findTicketByToken(token);
+  const accessToken = extractAccessToken(rawText);
+  let ticket = await findTicketByAccessToken(accessToken);
+  if (!ticket) {
+    // Fall back to the old raw-token format, for any ticket issued before this change.
+    ticket = await findTicketByToken(rawText);
+  }
   return verifyAndCheckIn(ticket, req.admin.id, gate, res);
 }
 

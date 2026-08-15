@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS registrations (
   payment_evidence_path TEXT NOT NULL,
   payment_evidence_original_name TEXT NOT NULL,
   payment_evidence_mime TEXT NOT NULL,
+  evidence_sha256 TEXT,
+  duplicate_of_registration_id TEXT,
   status TEXT NOT NULL DEFAULT 'PENDING',
   rejection_reason TEXT,
   access_token TEXT NOT NULL UNIQUE,
@@ -56,6 +58,13 @@ CREATE TABLE IF NOT EXISTS registrations (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_reg_matric_active
   ON registrations(matric_number_normalized)
   WHERE status IN ('PENDING', 'APPROVED');
+
+-- Added after the initial release — kept as ALTERs (not just in the CREATE
+-- TABLE above) so this stays safe to run against a database that was
+-- already provisioned before duplicate-receipt detection existed.
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS evidence_sha256 TEXT;
+ALTER TABLE registrations ADD COLUMN IF NOT EXISTS duplicate_of_registration_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_registrations_evidence_sha256 ON registrations(evidence_sha256);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_reg_email_active
   ON registrations(email_normalized)
