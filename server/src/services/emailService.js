@@ -1,27 +1,6 @@
-import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 
-let transporter = null;
-
-function getTransporter() {
-  if (transporter) return transporter;
-
-  if (!env.smtp.host || !env.smtp.user || !env.smtp.password) {
-    console.warn(
-      '[emailService] SMTP is not fully configured (SMTP_HOST/SMTP_USER/SMTP_PASSWORD). ' +
-        'Emails will be logged to the console instead of sent.'
-    );
-    return null;
-  }
-
-  transporter = nodemailer.createTransport({
-    host: env.smtp.host,
-    port: env.smtp.port,
-    secure: env.smtp.secure,
-    auth: { user: env.smtp.user, pass: env.smtp.password },
-  });
-  return transporter;
-}
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 function layout({ title, bodyHtml }) {
   return `<!DOCTYPE html>
@@ -56,15 +35,41 @@ function layout({ title, bodyHtml }) {
 }
 
 async function send({ to, subject, html, attachments = [] }) {
-  const from = `"${env.smtp.fromName}" <${env.smtp.fromAddress}>`;
-  const t = getTransporter();
-
-  if (!t) {
-    console.log(`\n[emailService] (SMTP not configured — would send)\nTo: ${to}\nSubject: ${subject}\n`);
+  if (!env.email.brevoApiKey) {
+    console.log(`\n[emailService] (BREVO_API_KEY not configured — would send)\nTo: ${to}\nSubject: ${subject}\n`);
     return { simulated: true };
   }
 
-  return t.sendMail({ from, to, subject, html, attachments });
+  const payload = {
+    sender: { name: env.email.fromName, email: env.email.fromAddress },
+    to: [{ email: to }],
+    subject,
+    htmlContent: html,
+  };
+
+  if (attachments.length > 0) {
+    payload.attachment = attachments.map((a) => ({
+      name: a.filename,
+      content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+    }));
+  }
+
+  const res = await fetch(BREVO_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'api-key': env.email.brevoApiKey,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => '');
+    throw new Error(`Brevo API error (${res.status}): ${errorBody || res.statusText}`);
+  }
+
+  return res.json();
 }
 
 export async function sendRegistrationReceivedEmail({ to, fullName }) {
@@ -81,6 +86,7 @@ export async function sendRegistrationReceivedEmail({ to, fullName }) {
 }
 
 export async function sendApprovedTicketEmail({ to, fullName, level, ticketCode, qrCodeBuffer, ticketUrl }) {
+  const qrBase64 = qrCodeBuffer.toString('base64');
   const html = layout({
     title: 'Your Ticket Is Ready 🎉',
     bodyHtml: `
@@ -92,7 +98,7 @@ export async function sendApprovedTicketEmail({ to, fullName, level, ticketCode,
           <p style="margin:0 0 12px;font-size:16px;font-weight:600;">${escapeHtml(fullName)} · ${escapeHtml(level)} Level</p>
           <p style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#8a8578;">Ticket ID</p>
           <p style="margin:0 0 12px;font-size:18px;font-weight:700;letter-spacing:1px;">${ticketCode}</p>
-          <img src="cid:qrcode" alt="Ticket QR code" width="220" height="220" style="display:block;margin:0 auto;border-radius:8px;" />
+          <img src="data:image/png;base64,${qrBase64}" alt="Ticket QR code" width="220" height="220" style="display:block;margin:0 auto;border-radius:8px;" />
         </td></tr>
       </table>
       <p><strong>Date:</strong> ${env.event.date}<br/>
@@ -113,7 +119,6 @@ export async function sendApprovedTicketEmail({ to, fullName, level, ticketCode,
       {
         filename: 'ticket-qr.png',
         content: qrCodeBuffer,
-        cid: 'qrcode',
       },
     ],
   });
