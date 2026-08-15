@@ -10,7 +10,7 @@ const LEVELS = ['100', '200', '300', '400', '500', 'PG', 'Other'];
 const MAX_FILE_MB = 5;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
-const EMPTY_FORM = { fullName: '', matricNumber: '', level: '', phone: '', email: '' };
+const EMPTY_FORM = { fullName: '', matricNumber: '', level: '', phone: '', email: '', website: '' };
 
 export default function Register() {
   const { event } = useEvent();
@@ -112,6 +112,23 @@ export default function Register() {
             </div>
 
             <form className="card register__form" onSubmit={onSubmit} noValidate>
+              {/* Honeypot: invisible to real visitors, but a bot's autofill script
+                  will often fill any field it finds. If this has a value, we know
+                  the submission wasn't from a person — see createRegistration on
+                  the server, which silently discards it. */}
+              <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }}>
+                <label htmlFor="website">Leave this field blank</label>
+                <input
+                  id="website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={form.website}
+                  onChange={(e) => updateField('website', e.target.value)}
+                />
+              </div>
+
               <h2 style={{ fontSize: '1.15rem', marginBottom: 20 }}>Personal information</h2>
 
               <div className="field">

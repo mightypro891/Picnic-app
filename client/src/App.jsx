@@ -44,7 +44,7 @@ export default function App() {
         <Route path="registrations/:id" element={<RegistrationDetail />} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="attendees" element={<Attendees />} />
-        <Route path="promo" element={<PromoGraphic />} />
+        <Route path="flyer" element={<PromoGraphic />} />
         <Route path="security-log" element={<SecurityLog />} />
         <Route path="backups" element={<Backups />} />
       </Route>

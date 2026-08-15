@@ -29,5 +29,6 @@ async function request(path, { method = 'GET', body, isForm = false } = {}) {
 export const api = {
   get: (path) => request(path),
   post: (path, body, opts = {}) => request(path, { method: 'POST', body, ...opts }),
+  delete: (path) => request(path, { method: 'DELETE' }),
   baseUrl: BASE_URL,
 };

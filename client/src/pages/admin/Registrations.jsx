@@ -116,7 +116,14 @@ export default function Registrations() {
                     <td>{r.full_name}</td>
                     <td>{r.matric_number}</td>
                     <td>{r.level}</td>
-                    <td><StatusBadge status={r.status} /></td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                      {r.duplicate_of_registration_id && (
+                        <span className="badge badge-rejected" style={{ marginLeft: 6 }} title="Payment evidence matches another registration">
+                          ⚠️ Duplicate receipt
+                        </span>
+                      )}
+                    </td>
                     <td>{r.ticket_code || '—'}</td>
                     <td>{r.ticket_status === 'CHECKED_IN' ? <span className="badge badge-checked-in">Checked in</span> : r.ticket_status ? <span className="badge badge-valid">Not yet</span> : '—'}</td>
                   </tr>
@@ -135,6 +142,11 @@ export default function Registrations() {
                   </div>
                   <StatusBadge status={r.status} />
                 </div>
+                {r.duplicate_of_registration_id && (
+                  <p style={{ margin: '6px 0 0' }}>
+                    <span className="badge badge-rejected">⚠️ Duplicate receipt</span>
+                  </p>
+                )}
                 <div className="reg-card__meta">
                   Ticket: {r.ticket_code || '—'}{' '}
                   {r.ticket_status === 'CHECKED_IN' && <span className="badge badge-checked-in">Checked in</span>}

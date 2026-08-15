@@ -8,7 +8,7 @@ const NAV = [
   { to: '/admin/registrations', label: 'Registrations', icon: '📋' },
   { to: '/admin/scanner', label: 'QR Scanner', icon: '📷' },
   { to: '/admin/attendees', label: 'Attendees', icon: '✅' },
-  { to: '/admin/promo', label: 'Promo Graphic', icon: '🎨' },
+  { to: '/admin/flyer', label: 'Flyer', icon: '🎨' },
   { to: '/admin/security-log', label: 'Security Log', icon: '🛡️' },
   { to: '/admin/backups', label: 'Backups', icon: '🗄️' },
 ];

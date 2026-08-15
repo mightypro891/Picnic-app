@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getRegistrationDetail, approveRegistration, rejectRegistration, evidenceUrl } from '../../api/admin.js';
+import { getRegistrationDetail, approveRegistration, rejectRegistration, resendTicket, deleteRegistration, evidenceUrl } from '../../api/admin.js';
 
 export default function RegistrationDetail() {
   const { id } = useParams();
@@ -10,6 +10,9 @@ export default function RegistrationDetail() {
   const [busy, setBusy] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [reason, setReason] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   function load() {
     getRegistrationDetail(id).then(setReg).catch((err) => setError(err.message));
@@ -39,6 +42,30 @@ export default function RegistrationDetail() {
     } catch (err) {
       setError(err.message);
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    setBusy(true);
+    setResendMessage('');
+    try {
+      await resendTicket(id);
+      setResendMessage('Ticket email resent successfully.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDelete() {
+    setBusy(true);
+    try {
+      await deleteRegistration(id);
+      navigate('/admin/registrations');
+    } catch (err) {
+      setError(err.message);
       setBusy(false);
     }
   }
@@ -75,6 +102,18 @@ export default function RegistrationDetail() {
             <p className="hint" style={{ marginTop: 16 }}>Rejection reason: "{reg.rejection_reason}"</p>
           )}
 
+          {reg.duplicate_of_registration_id && (
+            <div className="card" style={{ padding: 16, marginTop: 16, background: 'var(--color-surface-alt)', border: '1px solid var(--color-danger)' }}>
+              <p style={{ margin: 0, fontWeight: 700 }}>⚠️ Possible duplicate receipt</p>
+              <p style={{ margin: '6px 0 0' }}>
+                This exact payment evidence file matches{' '}
+                <a href={`/admin/registrations/${reg.duplicate_of_registration_id}`}>another registration</a>.
+                Check both before approving — it may be a legitimate resubmission, or the same receipt reused
+                by a different person.
+              </p>
+            </div>
+          )}
+
           {reg.status === 'PENDING' && (
             <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={onApprove} disabled={busy}>
@@ -85,6 +124,69 @@ export default function RegistrationDetail() {
               </button>
             </div>
           )}
+
+          {reg.status === 'APPROVED' && (
+            <div style={{ marginTop: 24 }}>
+              <button className="btn btn-ghost" onClick={onResend} disabled={busy}>
+                {busy ? 'Sending…' : '✉️ Resend Ticket Email'}
+              </button>
+              <p className="hint" style={{ marginTop: 8 }}>
+                Sends a fresh copy of the ticket + QR code — use this if the student says they never got
+                the email, or if their ticket was issued before the QR code fix.
+              </p>
+              {resendMessage && <p style={{ color: 'var(--color-success)', marginTop: 4 }}>{resendMessage}</p>}
+            </div>
+          )}
+
+          <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--color-border)' }}>
+            {!showDelete ? (
+              <button
+                className="btn btn-ghost"
+                style={{ color: 'var(--color-danger)' }}
+                onClick={() => setShowDelete(true)}
+                disabled={busy}
+              >
+                🗑️ Delete Registration
+              </button>
+            ) : (
+              <div className="card" style={{ padding: 16, background: 'var(--color-surface-alt)', border: '1px solid var(--color-danger)' }}>
+                <p style={{ margin: 0, fontWeight: 700 }}>Delete this registration permanently?</p>
+                <p className="hint" style={{ marginTop: 6 }}>
+                  This removes {reg.full_name}'s registration, their ticket (if issued), and their uploaded
+                  payment evidence file. This cannot be undone. Meant for cleaning up test submissions —
+                  don't use this on a real attendee's registration.
+                </p>
+                <label htmlFor="deleteConfirm" style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginTop: 10 }}>
+                  Type the full name "{reg.full_name}" to confirm
+                </label>
+                <input
+                  id="deleteConfirm"
+                  className="input"
+                  style={{ marginTop: 6, marginBottom: 12 }}
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={onDelete}
+                    disabled={busy || deleteConfirmText.trim() !== reg.full_name}
+                  >
+                    {busy ? 'Deleting…' : 'Permanently Delete'}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setShowDelete(false);
+                      setDeleteConfirmText('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {showReject && (
             <div className="card" style={{ padding: 16, marginTop: 16, background: 'var(--color-surface-alt)' }}>

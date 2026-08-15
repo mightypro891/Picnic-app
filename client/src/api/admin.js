@@ -23,6 +23,14 @@ export function rejectRegistration(id, reason) {
   return api.post(`/admin/registrations/${id}/reject`, { reason });
 }
 
+export function resendTicket(id) {
+  return api.post(`/admin/registrations/${id}/resend-ticket`);
+}
+
+export function deleteRegistration(id) {
+  return api.delete(`/admin/registrations/${id}`);
+}
+
 export function listAttendance(search = '', gate = '') {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
