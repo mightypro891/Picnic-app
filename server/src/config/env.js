@@ -31,12 +31,12 @@ export const env = {
     password: process.env.FIRST_ADMIN_PASSWORD || '',
   },
 
-  smtp: {
-    host: process.env.SMTP_HOST || '',
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === 'true',
-    user: process.env.SMTP_USER || '',
-    password: process.env.SMTP_PASSWORD || '',
+  // Email is sent via Brevo's HTTP API (not raw SMTP) because Render's free
+  // tier blocks all outbound traffic on SMTP ports (25/465/587) as of Sept
+  // 2025 — see https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports.
+  // Brevo's API runs over normal HTTPS (port 443), which isn't blocked.
+  email: {
+    brevoApiKey: process.env.BREVO_API_KEY || '',
     fromName: process.env.EMAIL_FROM_NAME || 'ANB Picnic',
     fromAddress: process.env.EMAIL_FROM_ADDRESS || 'no-reply@example.com',
   },
