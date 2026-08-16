@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { me as fetchMe, login as loginRequest, logout as logoutRequest } from '../api/auth.js';
+import { setStoredToken } from '../api/client.js';
 
 export const AuthContext = createContext(null);
 
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const data = await loginRequest(email, password);
+    setStoredToken(data.token);
     setAdmin(data.admin);
     return data.admin;
   };
@@ -34,6 +36,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      setStoredToken(null);
       setAdmin(null);
     }
   };
