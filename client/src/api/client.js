@@ -1,10 +1,33 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const TOKEN_KEY = 'picnic_admin_token';
+
+export function getStoredToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null; // localStorage can throw in some private-browsing contexts
+  }
+}
+
+export function setStoredToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // If storage isn't available, the cookie fallback (for browsers that
+    // support it) is still in play server-side — nothing more we can do here.
+  }
+}
 
 async function request(path, { method = 'GET', body, isForm = false } = {}) {
+  const token = getStoredToken();
+  const headers = isForm ? {} : { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(`${BASE_URL}/api${path}`, {
     method,
     credentials: 'include',
-    headers: isForm ? undefined : { 'Content-Type': 'application/json' },
+    headers,
     body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
   });
 
