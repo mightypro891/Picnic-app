@@ -171,6 +171,12 @@ export async function login(req, res) {
 
   res.json({
     admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role },
+    // Also returned directly in the body (not just the cookie) so the
+    // client can store it and send it as an Authorization header — needed
+    // because Safari on iOS can silently drop cross-site cookies when the
+    // frontend and API live on different domains, which otherwise breaks
+    // login entirely on iPhones.
+    token,
   });
 }
 
