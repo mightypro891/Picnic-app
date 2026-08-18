@@ -21,6 +21,14 @@ export const env = {
     bucket: required('SUPABASE_STORAGE_BUCKET', 'payment-evidence'),
   },
 
+  // A PUBLIC bucket (separate from the private payment-evidence one) that
+  // holds ticket QR code images, so they can be linked directly in emails —
+  // see storageService.uploadQrCode for why this has to be a plain public
+  // URL rather than an inline/attached image.
+  qrCodes: {
+    bucket: required('QR_CODES_BUCKET', 'ticket-qr-codes'),
+  },
+
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
   ticketTokenSecret: required('TICKET_TOKEN_SECRET'),
