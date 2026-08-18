@@ -127,8 +127,8 @@ export async function getPaymentEvidence(req, res) {
   if (!registration) return res.status(404).json({ error: 'Registration not found.' });
 
   try {
-    const signedUrl = await getSignedEvidenceUrl(registration.payment_evidence_path, 120);
-    res.redirect(302, signedUrl);
+    const signedUrl = await getSignedEvidenceUrl(registration.payment_evidence_path, 300);
+    res.json({ url: signedUrl });
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: 'Could not load the evidence file.' });
