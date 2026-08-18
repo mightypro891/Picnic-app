@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getRegistrationDetail, approveRegistration, rejectRegistration, resendTicket, deleteRegistration, evidenceUrl } from '../../api/admin.js';
+import { getRegistrationDetail, approveRegistration, rejectRegistration, resendTicket, deleteRegistration, getEvidenceUrl } from '../../api/admin.js';
 
 export default function RegistrationDetail() {
   const { id } = useParams();
@@ -13,12 +13,23 @@ export default function RegistrationDetail() {
   const [resendMessage, setResendMessage] = useState('');
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [evidenceSignedUrl, setEvidenceSignedUrl] = useState(null);
+  const [evidenceError, setEvidenceError] = useState('');
 
   function load() {
     getRegistrationDetail(id).then(setReg).catch((err) => setError(err.message));
   }
 
   useEffect(load, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    setEvidenceSignedUrl(null);
+    setEvidenceError('');
+    getEvidenceUrl(id)
+      .then((data) => setEvidenceSignedUrl(data.url))
+      .catch((err) => setEvidenceError(err.message));
+  }, [id]);
 
   async function onApprove() {
     if (!window.confirm(`Approve ${reg.full_name}'s registration and issue a ticket?`)) return;
@@ -210,19 +221,25 @@ export default function RegistrationDetail() {
 
         <div className="card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: '1.1rem', marginBottom: 12 }}>Payment Evidence</h2>
-          {isImage ? (
-            <a href={evidenceUrl(reg.id)} target="_blank" rel="noreferrer">
+          {evidenceError && <p className="error">{evidenceError}</p>}
+          {!evidenceError && !evidenceSignedUrl && <p>Loading evidence…</p>}
+          {evidenceSignedUrl && isImage && (
+            <a href={evidenceSignedUrl} target="_blank" rel="noreferrer">
               <img
-                src={evidenceUrl(reg.id)}
+                src={evidenceSignedUrl}
                 alt={`Payment evidence submitted by ${reg.full_name}`}
                 style={{ width: '100%', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
               />
             </a>
-          ) : (
-            <a href={evidenceUrl(reg.id)} target="_blank" rel="noreferrer" className="btn btn-ghost">
+          )}
+          {evidenceSignedUrl && !isImage && (
+            <a href={evidenceSignedUrl} target="_blank" rel="noreferrer" className="btn btn-ghost">
               📄 Open PDF evidence
             </a>
           )}
+          <p className="hint" style={{ marginTop: 10 }}>
+            This link expires after a few minutes — reload the page for a fresh one if it stops working.
+          </p>
         </div>
       </div>
     </div>
