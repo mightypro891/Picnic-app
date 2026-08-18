@@ -43,8 +43,8 @@ export function exportAttendeesCsvUrl() {
   return `${api.baseUrl}/api/admin/export/attendees.csv`;
 }
 
-export function evidenceUrl(registrationId) {
-  return `${api.baseUrl}/api/admin/registrations/${registrationId}/evidence`;
+export function getEvidenceUrl(registrationId) {
+  return api.get(`/admin/registrations/${registrationId}/evidence`);
 }
 
 export function listAuditLog(params = {}) {
