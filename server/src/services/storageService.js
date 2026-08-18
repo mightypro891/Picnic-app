@@ -46,6 +46,32 @@ export async function deleteEvidence(path) {
   }
 }
 
+const QR_BUCKET = env.qrCodes.bucket;
+
+/**
+ * Uploads a ticket's QR code to a PUBLIC bucket and returns a permanent
+ * public URL. This is what actually goes in the ticket email's <img src> —
+ * not a data: URI (Gmail strips those from message bodies) and not a cid
+ * attachment reference (Brevo's transactional API doesn't support inline
+ * images at all). A plain https:// image URL is the one approach that
+ * reliably displays in every mail client, Gmail included.
+ *
+ * Safe to be public: the QR only encodes a link to the ticket's own public
+ * info page, which requires no auth to view either.
+ */
+export async function uploadQrCode(filename, buffer) {
+  const path = `tickets/${filename}`;
+  const { error } = await supabase.storage.from(QR_BUCKET).upload(path, buffer, {
+    contentType: 'image/png',
+    upsert: true, // resending a ticket re-uploads the same filename — fine to overwrite
+  });
+  if (error) {
+    throw new Error(`Failed to upload QR code: ${error.message}`);
+  }
+  const { data } = supabase.storage.from(QR_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 const BACKUP_BUCKET = env.backup.bucket;
 
 /** Uploads a daily backup JSON snapshot to a private Supabase Storage bucket. */
